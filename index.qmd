@@ -1,0 +1,3 @@
+## What's this?
+
+Hier teste ich die Ladegschwindigkeit von shinylive-apps und deren caching. Es finden sich auf den folgenden Seiten zwei R-shinyliveapps und zwei Python-shinyliveapps. Sowohl das wiederholte Laden ein und derselben Apps beschleunigt sich durch das Caching der WASM-Bibliotheken als auch das erstmalige Laden der jeweils zweiten App. Insgesamt scheint aber Python Geschwindigkeitsvorteile zu zeigen obwohl für diese Apps `numpy`, `seaborn`, `matplotlib`, `scipy`` und `shiny``geladen werden, wohingegen die R-apps nur `shiny` benötigt.

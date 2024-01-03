@@ -1,0 +1,83 @@
+---
+title: "Python Shinyliveapp 2"
+---
+## Shinylive Python Test
+
+```{shinylive-python}
+#| standalone: true
+#| viewerHeight: 900
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+from scipy.stats import ttest_ind
+from shiny import App, reactive, render, ui
+
+app_ui = ui.page_fluid(
+    ui.layout_sidebar(
+        ui.panel_sidebar(
+            ui.input_slider("n", "Gruppengröße", 0, 100, 20),
+            
+            ui.input_slider("d", "Cohen's d", 0, 3, .4, step = .1),
+            ui.output_text_verbatim("pvaluetxt"),
+        ),
+        ui.panel_main(
+            ui.output_plot("histogram1"),
+            ui.output_plot("histogram2"),
+        ),
+    ),
+)
+
+
+def server(input, output, session):
+  
+    @output
+    @render.plot(alt="histogram1")
+    def histogram1():
+        # Set seed for reproducibility
+        np.random.seed(2345)
+        
+        # Number of samples
+        num_samples = input.n()
+        
+        # Generating normally distributed data
+        var1 = np.random.normal(loc=0, scale=1, size=num_samples)
+        var2 = np.random.normal(loc=input.d(), scale=1, size=num_samples)
+        
+        # Creating a DataFrame
+        data = {'Gruppe 1': var1, 'Gruppe 2': var2}
+        df = pd.DataFrame(data)
+        
+        # Melt the DataFrame to convert it to the long format
+        df_long = df.melt(var_name='Variable', value_name='Value')
+        
+        # Create plot with seaborn
+        sns.stripplot(data=df_long, x="Value", y="Variable")
+        
+        # Remove axis titles and ticks
+        plt.gca().axes.get_xaxis().set_visible(True)
+        plt.gca().axes.get_yaxis().set_visible(True)
+        plt.xlabel('')  # Optional: Set an empty string to remove the x-axis label completely
+        plt.ylabel('')  # Optional: Set an empty string to remove the x-axis label completely
+
+     
+    @output
+    @render.text
+    def pvaluetxt():
+        # Set seed for reproducibility
+        np.random.seed(2345)
+        
+        # Number of samples
+        num_samples = input.n()
+        
+        # Generating normally distributed data
+        var1 = np.random.normal(loc=0, scale=1, size=num_samples)
+        var2 = np.random.normal(loc=input.d(), scale=1, size=num_samples)
+        t_statistic, p_value = ttest_ind(var1, var2)
+        return f"p-Wert: {round(p_value, 3)}"
+
+
+app = App(app_ui, server, debug=True)
+
+
+```

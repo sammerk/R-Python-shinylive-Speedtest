@@ -1,0 +1,21 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "today"
+  navbar:
+    left:
+      - href: index.qmd
+      - Python_Shinylive_1.qmd
+      - Python_Shinylive_2.qmd
+      - R_Shinylive_1.qmd
+      - R_Shinylive_2.qmd
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    
+filters:
+  - shinylive    
