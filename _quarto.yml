@@ -3,14 +3,23 @@ project:
   output-dir: docs
 
 website:
-  title: "today"
-  navbar:
-    left:
-      - href: index.qmd
-      - Python_Shinylive_1.qmd
-      - Python_Shinylive_2.qmd
-      - R_Shinylive_1.qmd
-      - R_Shinylive_2.qmd
+  title: "Load Time Test"
+  sidebar:
+    style: "docked"
+    search: true
+    contents: 
+      - section: "Python"
+        contents: 
+          - Python_Shinylive_1.qmd
+          - Python_Shinylive_2.qmd
+      - section: "R base"
+        contents: 
+          - R_Shinylive_1.qmd
+          - R_Shinylive_2.qmd
+      - section: "R libs"
+        contents: 
+          - R_lib_Shinylive_1.qmd
+          - R_lib_Shinylive_2.qmd
 
 format:
   html:
