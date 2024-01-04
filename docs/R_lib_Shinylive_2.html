@@ -218,59 +218,187 @@ ul.task-list li input[type="checkbox"] {
 <h2 class="anchored" data-anchor-id="r-shinylive-test-1">R-Shinylive Test 1</h2>
 <pre class="shinylive-r" data-engine="r"><code>#| standalone: true
 #| viewerHeight: 900
-ui &lt;- fluidPage(
-  sidebarLayout(
-    sidebarPanel(
-      sliderInput("n", "Gruppengröße", min = 0, max = 100, value = 20),
-      sliderInput("d", "Cohen's d", min = 0, max = 3, value = 0.4, step = 0.1),
-      verbatimTextOutput("pvaluetxt")
-    ),
-    mainPanel(
-      plotOutput("histogram1"),
-      plotOutput("histogram2")
-    )
-  )
+## Task Name: Korrelogramme_deskriptiv_lesen ####################################################
+
+library(shiny)
+library(miniUI)
+library(shinyjs)
+library(dplyr)
+library(learnr)
+library(shinycssloaders)
+library(bayestestR)
+
+set.seed(25051982)
+
+
+## UI #########################################################################
+ui &lt;- miniPage(
+  useShinyjs(),
+  miniContentPanel(
+    wellPanel(
+      h4("Korrelogramme interpretieren"),
+      htmlOutput("prompt_task"),
+      plotOutput("plot", height = "400px", width = "400px")
+      ),
+    shinyjs::hidden(wellPanel(id = "feedbackpanel_task",
+                              withSpinner(
+                              htmlOutput("feedback_task"),
+                              proxy.height = "50px",
+                              color = "#8cd000"))
+                    ),
+    wellPanel(
+      uiOutput("ui_answers_task"),
+      actionButton("show_feedback_task", 
+                   "Prüfe meine Lösung!",
+                   icon = icon("send")),
+      actionButton("reshuffle_task", 
+                   "Diese Aufgabe wiederholen",
+                   icon = icon("repeat")),
+      actionButton("new_task", 
+                   "Neue Aufgabe derselben Art",
+                   icon = icon("plus"))
+    )      
+  )  
 )
 
-# Server
+
+
 server &lt;- function(input, output, session) {
   
-  output$histogram1 &lt;- renderPlot({
-    set.seed(2345)
-    num_samples &lt;- input$n
+  
+  # Global functions ###########################################################
+  ## round2 rounds .5 upwards
+  round2 = function(x, n) {
+    posneg = sign(x)
+    z = abs(x)*10^n
+    z = z + 0.5 + sqrt(.Machine$double.eps)
+    z = trunc(z)
+    z = z/10^n
+    z*posneg
+  }
+  
+  
+  ##############################################################################
+  # Backend for task  ##########################################################
+  ##############################################################################
+  
+  ## Matrix with variables and values
+  shape &lt;- reactive({
+    input$new_task
     
-    var1 &lt;- rnorm(num_samples, mean = 0, sd = 1)
-    var2 &lt;- rnorm(num_samples, mean = input$d, sd = 1)
+    sample(c("unif", "skew1", 
+             "skew2", "normal","u"))
+    })
+  
+  data &lt;- reactive({
+    input$new_task
     
-    df &lt;- data.frame(Gruppe1 = var1, Gruppe2 = var2)
-    # Pivoting the dataset from wide to long format
-    df_long &lt;- reshape(
-      data = df,
-      varying = list(names(df)[1:2]),  # Columns to be melted
-      v.names = "Value",                      # Name of the variable column in the long format
-      timevar = "Variable",                   # Name of the column containing variable names
-      times = c("Gruppe 1", "Gruppe 2"),      # New variable names in long format
-      direction = "long"                      # Pivoting from wide to long
-    )
+    data &lt;- 
+      tibble(u = sample(distribution_beta(100, .6, .6), 100),
+             unif = sample(distribution_beta(100, 1, 1), 100),
+             normal = sample(distribution_beta(100, 4, 4), 100),
+             skew1 = sample(distribution_beta(100, 1, 8), 100),
+             skew2 = sample(distribution_beta(100, 8, 1), 100)
+      ) %&gt;% 
+      select(as.character(shape()))
     
-    stripchart(Value ~ Variable, data = df_long,
-               pch = 19, frame = FALSE, 
-               vertical = FALSE,
-               method = "jitter")
+    names(data) &lt;- "A"
+    
+    data$B &lt;- (data$A + rnorm(100, 0, sample(c(.15, 60), 1)))*sample(c(1,-1),1)
+    
+    return(data)
   })
   
-  output$pvaluetxt &lt;- renderText({
-    set.seed(2345)
-    num_samples &lt;- input$n
+  output$plot &lt;- renderPlot({
     
-    var1 &lt;- rnorm(num_samples, mean = 0, sd = 1)
-    var2 &lt;- rnorm(num_samples, mean = input$d, sd = 1)
+    ggplot(data(), aes(A, B)) + 
+      geom_point(color = "#8CD000") +
+      stat_smooth(se = F, method = "lm", color = "#8CD000") +
+      geom_rug(color = "#8CD000", alpha = .5) + 
+      theme_minimal() + 
+      ggtitle("Streudiagramm") +
+      labs(caption = "Die x- und y-Koordinaten jedes Punktes sind\nauf den jeweiligen Achsen als Striche dargestellt")
     
-    t_test &lt;- t.test(var1, var2)
-    paste("p-Wert:", round(t_test$p.value, digits = 3))
   })
+  
+  
+  
+  questions_answers &lt;- reactive({
+    input$reshuffle_task
+    input$new_task
+    tibble(
+      questions = c("A ist linksschief verteilt",
+                    "A ist rechtsschief verteilt",
+                    "A und B sind stark positiv korreliert",
+                    "A und B sind stark negativ korreliert"),
+      answers = c(DescTools::Skew(data()$A) &lt; -1,
+                  DescTools::Skew(data()$A) &gt; 1,
+                  cor(data()$A, data()$B) &gt; .4,
+                  cor(data()$A, data()$B) &lt; -.4)
+      )%&gt;% 
+      sample_frac(1)
+  })
+  
+
+  ## Render UI for Answers ###
+  output$ui_answers_task &lt;- renderUI({
+    input$reshuffle_task
+    input$new_task
+    checkboxGroupInput("answers_task",
+                       "Bitte zutreffendes ankreuzen",
+                       questions_answers()$questions
+                       )
+  })
+  
+  ## Prompt task 
+  output$prompt_task &lt;- renderText({
+    paste("Welche Aussagen bzgl. der graphisch dargestellten Daten sind wahr?")
+  }) 
+
+  
+  ## Correct answers ###
+  correct_answers_task &lt;- reactive({
+    questions_answers() %&gt;% 
+      filter(answers == T) %&gt;% 
+      pull(questions)
+  })
+  
+
+  ## Feedback task  ####
+  output$feedback_task &lt;- renderText({   
+    
+      if(setequal(correct_answers_task(), input$answers_task)){
+        HTML(paste("Richtig! &lt;br&gt;&lt;i&gt;", 
+                   learnr::random_praise(),
+                   "&lt;i&gt;"))}else{
+          HTML(paste("&lt;b&gt;Leider nicht korrekt!&lt;/b&gt; Richtig wäre:  &lt;br&gt;✓ ", 
+                     paste(correct_answers_task(), collapse = ", &lt;br&gt;✓ "),
+                     "&lt;br&gt;&lt;i&gt;",
+                     learnr::random_encouragement(),
+                     "&lt;/i&gt;"))
+        } 
+  })
+  
+  ## Show feedback on button click 
+  observeEvent(input$show_feedback_task, {
+    showElement(id = "feedbackpanel_task")
+  })
+  
+  ## Hide feedback on solution change or new plot type
+  observeEvent(c(input$answers_task, input$new_task), {
+    hideElement(id = "feedbackpanel_task")
+  })
+  
+  ## Reset answer on new plot type
+  observeEvent(c(input$reshuffle_task, input$new_task), {
+    reset(id = "answers_task")
+  })
+  
+  
+  
 }
 
+# Create Shiny object
 shinyApp(ui = ui, server = server)
 
 </code></pre>
